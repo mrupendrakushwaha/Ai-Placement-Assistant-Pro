@@ -64,16 +64,13 @@ Top 10 HR Questions, Top 10 AI/ML Questions,
 3 Month Roadmap.
 
 IMPORTANT:
-- Use bold headings
+- Use bold headings and colour blue
 - Use bullet points
 - No paragraphs
 - Each reason on separate line
 - Add blank line after every section
 - Professional PDF format
-- No * symbol use
 - Do not use ** symbols.
-- Do not use markdown.
-- Use plain text headings only.
 """
 
     with st.spinner("Analyzing..."):
