@@ -7,7 +7,10 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 st.set_page_config(page_title="AI Placement Assistant Pro", page_icon="🎯", layout="wide")
 
-st.title("🎯 AI Placement Assistant Pro")
+st.markdown(
+    "<h1 style='text-align:center;'>🎯 AI Placement Assistant Pro</h1>",
+    unsafe_allow_html=True
+)
 st.write("Upload Resume PDF and get a professional placement report.")
 
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -16,7 +19,7 @@ model = genai.GenerativeModel("gemini-2.5-flash-lite")
 uploaded_file = st.file_uploader("Upload Resume PDF", type=["pdf"])
 github_username = st.text_input("GitHub Username")
 
-if uploaded_file and st.button("Analyze Resume"):
+if uploaded_file and st.button("🚀Analyze Resume🚀"):
     resume_text = ""
     with pdfplumber.open(uploaded_file) as pdf:
         for page in pdf.pages:
@@ -66,6 +69,7 @@ IMPORTANT:
 - Each reason on separate line
 - Add blank line after every section
 - Professional PDF format
+- No * symbol use
 """
 
     with st.spinner("Analyzing..."):
