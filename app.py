@@ -1,4 +1,5 @@
 import re
+import io
 import streamlit as st
 import pdfplumber
 import requests
@@ -18,9 +19,9 @@ model = genai.GenerativeModel("gemini-2.5-flash-lite")
 uploaded_file = st.file_uploader("Upload Resume PDF", type=["pdf"])
 github_username = st.text_input("GitHub Username")
 
-# Approximate maximum characters to include in PDF to keep it within ~4 pages.
-# Adjust this constant if you need slightly more or less content.
-MAX_PDF_CHARS = 14000
+# Approximate maximum characters to include in PDF to keep it within 4 pages.
+# This is an approximation — ReportLab layout depends on fonts, spacing, and content.
+MAX_PDF_CHARS = 12000
 
 
 def md_to_reportlab_html(text_line: str) -> str:
@@ -38,7 +39,45 @@ def md_to_reportlab_html(text_line: str) -> str:
     return text_line
 
 
+def split_into_sections(report_text: str):
+    """Split report into sections by headings.
+    A heading is detected when a line ends with ':' or is fully bold (wrapped in ** or <b>..</b>).
+    Returns list of section strings (heading + its lines).
+    """
+    lines = report_text.splitlines()
+    sections = []
+    current = []
+
+    def is_heading(line: str) -> bool:
+        l = line.strip()
+        if not l:
+            return False
+        # markdown-style bold
+        if re.match(r"^\*\*.*\*\*$", l):
+            return True
+        # ReportLab bold tag
+        if l.startswith("<b>") and l.endswith("</b>"):
+            return True
+        # ends with colon
+        if l.endswith(":"):
+            return True
+        return False
+
+    for line in lines:
+        if is_heading(line):
+            # start new section
+            if current:
+                sections.append("\n".join(current).strip())
+            current = [line]
+        else:
+            current.append(line)
+    if current:
+        sections.append("\n".join(current).strip())
+    return sections
+
+
 if uploaded_file and st.button("Analyze Resume"):
+    # Extract text from uploaded resume
     resume_text = ""
     with pdfplumber.open(uploaded_file) as pdf:
         for page in pdf.pages:
@@ -89,9 +128,9 @@ Top 10 HR Questions, Top 10 AI/ML Questions,
     st.subheader("📊 Professional Placement Report")
     st.markdown(report)
 
-    # Prepare PDF with A4 size and margins; render headings bold and limit output roughly to 4 pages
-    pdf_file = "AI_Placement_Report.pdf"
-    pdf_doc = SimpleDocTemplate(pdf_file, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    # Build PDF in-memory and ensure headings are bold and output is limited to ~4 pages
+    pdf_buffer = io.BytesIO()
+    pdf_doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     styles = getSampleStyleSheet()
 
     title_style = styles["Title"]
@@ -101,10 +140,10 @@ Top 10 HR Questions, Top 10 AI/ML Questions,
         "Heading",
         parent=styles.get("Heading2", body_style),
         fontName="Helvetica-Bold",
-        fontSize=12,
-        leading=14,
+        fontSize=14,
+        leading=16,
         spaceBefore=8,
-        spaceAfter=4,
+        spaceAfter=6,
     )
 
     bullet_style = ParagraphStyle(
@@ -120,26 +159,36 @@ Top 10 HR Questions, Top 10 AI/ML Questions,
 
     story = [Paragraph("AI Placement Assistant Pro", title_style), Spacer(1, 12)]
 
-    # Truncate report to MAX_PDF_CHARS to keep PDF within ~4 pages
-    if len(report) > MAX_PDF_CHARS:
-        cut_at = report.rfind('\n', 0, MAX_PDF_CHARS)
-        if cut_at == -1:
-            truncated_report = report[:MAX_PDF_CHARS]
-        else:
-            truncated_report = report[:cut_at]
-        truncated_report += "\n\n[Output truncated to fit in PDF]"
-    else:
-        truncated_report = report
+    # Convert markdown bold to <b>..</b> in the full report to make heading detection easier
+    report_for_processing = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", report)
 
-    # Convert lines to Paragraphs. Detect headings and make them bold.
-    for raw_line in truncated_report.splitlines():
+    # Split into logical sections and keep whole sections when truncating
+    sections = split_into_sections(report_for_processing)
+
+    accumulated = ""
+    truncated = False
+    for sec in sections:
+        # if adding this section would exceed budget, stop (preserve whole sections)
+        if len(accumulated) + len(sec) > MAX_PDF_CHARS:
+            truncated = True
+            break
+        accumulated += sec + "\n\n"
+
+    if not accumulated:
+        # fallback: use a truncated prefix of the report
+        if len(report_for_processing) > MAX_PDF_CHARS:
+            accumulated = report_for_processing[:MAX_PDF_CHARS]
+            truncated = True
+        else:
+            accumulated = report_for_processing
+
+    # Build story from accumulated content
+    for raw_line in accumulated.splitlines():
         line = raw_line.strip()
         if not line:
             continue
         html_line = md_to_reportlab_html(line)
-        # Remove tags for plain check
         plain_for_check = re.sub(r"<.*?>", "", html_line).strip()
-        # Decide if this is a heading: ends with ':' or fully bold
         if plain_for_check.endswith(":") or (html_line.startswith("<b>") and html_line.endswith("</b>")):
             if not html_line.startswith("<b>"):
                 html_line = f"<b>{html_line}</b>"
@@ -150,7 +199,12 @@ Top 10 HR Questions, Top 10 AI/ML Questions,
             else:
                 story.append(Paragraph(html_line, body_style))
 
-    pdf_doc.build(story)
+    if truncated:
+        story.append(Spacer(1, 8))
+        story.append(Paragraph("[Output truncated to fit in 4 pages]", ParagraphStyle("Note", parent=body_style, fontSize=9, leading=11, textColor="grey")))
 
-    with open(pdf_file, "rb") as f:
-        st.download_button("📥 Download PDF Report", f, "AI_Placement_Report.pdf", "application/pdf")
+    pdf_doc.build(story)
+    pdf_buffer.seek(0)
+
+    # Provide download
+    st.download_button("📥 Download PDF Report", data=pdf_buffer, file_name="AI_Placement_Report.pdf", mime="application/pdf")
