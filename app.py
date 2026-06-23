@@ -4,6 +4,7 @@ import requests
 import google.generativeai as genai
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
 st.set_page_config(page_title="AI Placement Assistant Pro", page_icon="🎯", layout="wide")
 
@@ -98,21 +99,11 @@ Top 5 Missing Skills
 • Skill 2
 """
     
-
     with st.spinner("Analyzing..."):
         report = model.generate_content(prompt).text
 
     st.subheader("📊 Professional Placement Report")
     st.markdown(report)
-
-    from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    PageBreak
-)
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
 
     pdf_file = "AI_Placement_Report.pdf"
 
