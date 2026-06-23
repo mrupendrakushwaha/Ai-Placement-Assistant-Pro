@@ -25,6 +25,18 @@ if uploaded_file and st.button("Analyze Resume"):
             if txt:
                 resume_text += txt + "\n"
 
+    # Extract candidate name from resume
+    name_prompt = f"""From this resume, extract ONLY the candidate's full name from the top of the resume. 
+    Return only the name, nothing else.
+    
+    Resume:
+    {resume_text[:500]}
+    """
+    
+    candidate_name = model.generate_content(name_prompt).text.strip()
+    if not candidate_name:
+        candidate_name = "Candidate"
+
     repos_count, followers, following = 0, 0, 0
     try:
         user = requests.get(f"https://api.github.com/users/{github_username}").json()
