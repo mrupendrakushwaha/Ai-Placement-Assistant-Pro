@@ -1,6 +1,7 @@
-streamlit
-groq
-pdfplumber
-pandas
-PyGithub
-reportlab
+streamlit==1.28.1
+pdfplumber==0.10.3
+requests==2.31.0
+groq==0.4.2
+reportlab==4.0.7
+pandas==2.1.3
+PyGithub==2.1.1
