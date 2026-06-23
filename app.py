@@ -14,6 +14,7 @@ genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
 uploaded_file = st.file_uploader("Upload Resume PDF", type=["pdf"])
+candidate_name = st.text_input("Candidate Name")
 github_username = st.text_input("GitHub Username")
 
 if uploaded_file and st.button("Analyze Resume"):
@@ -112,117 +113,120 @@ Top 5 Missing Skills
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-pdf_file = "AI_Placement_Report.pdf"
+    pdf_file = "AI_Placement_Report.pdf"
 
-pdf = SimpleDocTemplate(pdf_file)
+    pdf = SimpleDocTemplate(pdf_file)
 
-styles = getSampleStyleSheet()
+    styles = getSampleStyleSheet()
 
-story = []
+    story = []
 
-# Title
-story.append(
-    Paragraph(
-        "<font color='darkblue'><b>AI Placement Assistant Pro</b></font>",
-        styles["Title"]
-    )
-)
-
-story.append(Spacer(1, 10))
-
-story.append(
-    Paragraph(
-        "<b>Professional Placement Analysis Report</b>",
-        styles["Heading2"]
-    )
-)
-
-story.append(Spacer(1, 15))
-
-story.append(
-    Paragraph(
-        f"<b>Candidate Name:</b> {candidate_name}<br/>"
-        f"<b>GitHub Username:</b> {github_username}",
-        styles["BodyText"]
-    )
-)
-
-story.append(Spacer(1, 15))
-
-# Clean Report
-report = report.replace("**", "")
-report = report.replace("* ", "• ")
-report = report.replace("*", "")
-
-sections = [
-    "ATS Score",
-    "GitHub Score",
-    "Placement Readiness",
-    "Top 5 Strengths",
-    "Top 5 Missing Skills",
-    "Expected Package",
-    "Interview Readiness",
-    "Top 10 HR Questions",
-    "Top 10 AI/ML Questions",
-    "3 Month Roadmap"
-]
-
-for line in report.split("\n"):
-
-    line = line.strip()
-
-    if not line:
-        story.append(Spacer(1, 4))
-        continue
-
-    # Main Headings
-    if any(line.startswith(sec) for sec in sections):
-
-        story.append(Spacer(1, 8))
-
-        story.append(
-            Paragraph(
-                f"<font color='blue'><b>{line}</b></font>",
-                styles["Heading2"]
-            )
+    # Title
+    story.append(
+        Paragraph(
+            "<font color='darkblue'><b>AI Placement Assistant Pro</b></font>",
+            styles["Title"]
         )
-
-    # Sub Headings
-    elif line.endswith(":"):
-
-        story.append(
-            Paragraph(
-                f"<b>{line}</b>",
-                styles["Heading3"]
-            )
-        )
-
-    # Bullet Points
-    elif line.startswith("•"):
-
-        story.append(
-            Paragraph(
-                f"&#8226; {line[1:].strip()}",
-                styles["BodyText"]
-            )
-        )
-
-    else:
-
-        story.append(
-            Paragraph(
-                line,
-                styles["BodyText"]
-            )
-        )
-
-story.append(Spacer(1, 20))
-
-story.append(
-    Paragraph(
-        "<font color='darkblue'><b>Created by Mr. Upendra Kushwaha</b></font>",
-        styles["Heading3"]
     )
-)
 
-pdf.build(story)
+    story.append(Spacer(1, 10))
+
+    story.append(
+        Paragraph(
+            "<b>Professional Placement Analysis Report</b>",
+            styles["Heading2"]
+        )
+    )
+
+    story.append(Spacer(1, 15))
+
+    story.append(
+        Paragraph(
+            f"<b>Candidate Name:</b> {candidate_name}<br/>"
+            f"<b>GitHub Username:</b> {github_username}",
+            styles["BodyText"]
+        )
+    )
+
+    story.append(Spacer(1, 15))
+
+    # Clean Report
+    report = report.replace("**", "")
+    report = report.replace("* ", "• ")
+    report = report.replace("*", "")
+
+    sections = [
+        "ATS Score",
+        "GitHub Score",
+        "Placement Readiness",
+        "Top 5 Strengths",
+        "Top 5 Missing Skills",
+        "Expected Package",
+        "Interview Readiness",
+        "Top 10 HR Questions",
+        "Top 10 AI/ML Questions",
+        "3 Month Roadmap"
+    ]
+
+    for line in report.split("\n"):
+
+        line = line.strip()
+
+        if not line:
+            story.append(Spacer(1, 4))
+            continue
+
+        # Main Headings
+        if any(line.startswith(sec) for sec in sections):
+
+            story.append(Spacer(1, 8))
+
+            story.append(
+                Paragraph(
+                    f"<font color='blue'><b>{line}</b></font>",
+                    styles["Heading2"]
+                )
+            )
+
+        # Sub Headings
+        elif line.endswith(":"):
+
+            story.append(
+                Paragraph(
+                    f"<b>{line}</b>",
+                    styles["Heading3"]
+                )
+            )
+
+        # Bullet Points
+        elif line.startswith("•"):
+
+            story.append(
+                Paragraph(
+                    f"&#8226; {line[1:].strip()}",
+                    styles["BodyText"]
+                )
+            )
+
+        else:
+
+            story.append(
+                Paragraph(
+                    line,
+                    styles["BodyText"]
+                )
+            )
+
+    story.append(Spacer(1, 20))
+
+    story.append(
+        Paragraph(
+            "<font color='darkblue'><b>Created by Mr. Upendra Kushwaha</b></font>",
+            styles["Heading3"]
+        )
+    )
+
+    pdf.build(story)
+
+    with open(pdf_file, "rb") as f:
+        st.download_button("📥 Download PDF Report", f, "AI_Placement_Report.pdf", "application/pdf")
