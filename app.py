@@ -70,11 +70,24 @@ IMPORTANT:
 - Add blank line after every section
 - Professional PDF format
 - No * symbol use
+- Do not use ** symbols.
+- Do not use markdown.
+- Use plain text headings only.
 """
 
     with st.spinner("Analyzing..."):
         report = model.generate_content(prompt).text
         report = report.replace("* ", "\n• ")
+    import re
+
+report = response.text
+
+# sab bold stars hata do
+report = re.sub(r"\*\*(.*?)\*\*", r"\1", report)
+
+# extra stars hata do
+report = report.replace("*", "")
+        
 
     st.subheader("📊 Professional Placement Report")
     st.markdown(report)
@@ -117,7 +130,7 @@ IMPORTANT:
             )
             story.append(Spacer(1, 5))
 
-        # Bullet Points
+        # Bullet points
         elif line.startswith("•"):
             story.append(
                 Paragraph(
