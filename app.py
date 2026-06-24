@@ -34,7 +34,7 @@ if not GROQ_API_KEY and not OPENAI_API_KEY:
     st.warning("No LLM API key found. Please add GROQ_API_KEY or OPENAI_API_KEY to Streamlit secrets or set as environment variable.")
 
 # Default model - check Groq console for available models and limits
-DEFAULT_GROQ_MODEL = "llama3-70b-8192"
+DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # OpenAI default
