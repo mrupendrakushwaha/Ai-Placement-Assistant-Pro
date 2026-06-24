@@ -333,7 +333,7 @@ Top 5 Missing Skills
         "Interview Readiness",
         "Top 10 HR Questions",
         "Top 10 AI/ML Questions",
-        "3 Month Roadmap"
+        "Detailed 3 Month Roadmap", 
     ]
 
     for line in report_clean.split("\n"):
