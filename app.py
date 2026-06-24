@@ -54,14 +54,14 @@ def generate_with_groq(prompt, model=DEFAULT_GROQ_MODEL, max_tokens=1500, temper
             "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json"
         }
+        # Groq API does not support temperature parameter - remove it
         payload = {
             "model": model,
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant that strictly follows instructions."},
                 {"role": "user", "content": prompt}
             ],
-            "max_tokens": max_tokens,
-            "temperature": temperature
+            "max_tokens": max_tokens
         }
         delay = 1
         for attempt in range(1, retries + 1):
@@ -168,7 +168,7 @@ def summarize_resume_if_needed(resume_text, token_threshold=3500):
         "in concise bullet points so it can be used for further analysis:\n\n"
         f"{resume_text}"
     )
-    summary = generate_with_groq(summary_prompt, max_tokens=800, temperature=0.1)
+    summary = generate_with_groq(summary_prompt, max_tokens=800)
     if summary:
         return summary
     return resume_text[:token_threshold * 4]
@@ -183,7 +183,7 @@ if uploaded_file and st.button("Analyze Resume"):
     # Extract candidate name from the top of the resume
     name_prompt = f"""From this resume, extract ONLY the candidate's full name from the top of the resume.\nReturn only the name, nothing else.\n\nResume:\n{resume_text[:1000]}\n"""
 
-    candidate_name = generate_with_groq(name_prompt, max_tokens=60, temperature=0.0)
+    candidate_name = generate_with_groq(name_prompt, max_tokens=60)
     candidate_name = candidate_name.strip() if candidate_name else "Candidate"
 
     # Fetch GitHub stats (best-effort)
@@ -266,7 +266,7 @@ Top 5 Missing Skills
 
     with st.spinner("Analyzing..."):
         # adjust max_tokens based on how long you expect the result to be
-        report = generate_with_groq(prompt, model=DEFAULT_GROQ_MODEL, max_tokens=2000, temperature=0.1)
+        report = generate_with_groq(prompt, model=DEFAULT_GROQ_MODEL, max_tokens=2000)
 
     if not report:
         st.error("Failed to generate report from LLM providers.")
