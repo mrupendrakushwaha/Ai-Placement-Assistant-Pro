@@ -14,6 +14,7 @@ st.write("Upload Resume PDF and get a professional placement report.")
 
 # Prefer secret from Streamlit secrets, fall back to environment variable
 GROQ_API_KEY = None
+OPENAI_API_KEY = None
 try:
     GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 except Exception:
@@ -21,61 +22,119 @@ except Exception:
 if not GROQ_API_KEY:
     GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-if not GROQ_API_KEY:
-    st.warning("GROQ_API_KEY not found. Please add GROQ_API_KEY to Streamlit secrets or set as environment variable.")
+# OpenAI key (fallback)
+try:
+    OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
+except Exception:
+    OPENAI_API_KEY = None
+if not OPENAI_API_KEY:
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+if not GROQ_API_KEY and not OPENAI_API_KEY:
+    st.warning("No LLM API key found. Please add GROQ_API_KEY or OPENAI_API_KEY to Streamlit secrets or set as environment variable.")
 
 # Default model - check Groq console for available models and limits
 DEFAULT_GROQ_MODEL = "llama3-70b-8192"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
+# OpenAI default
+DEFAULT_OPENAI_MODEL = "gpt-3.5-turbo"
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+
 
 def generate_with_groq(prompt, model=DEFAULT_GROQ_MODEL, max_tokens=1500, temperature=0.2, timeout=60, retries=3):
     """
-    Simple helper to call Groq's OpenAI-compatible chat completions endpoint.
-    Falls back gracefully and retries on transient errors (like 429).
+    Try Groq first (if key present), otherwise fallback to OpenAI (if key present).
+    Returns the assistant content string or empty string on failure.
     """
-    if not GROQ_API_KEY:
-        return ""
-
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": "You are a helpful assistant that strictly follows instructions."},
-            {"role": "user", "content": prompt}
-        ],
-        "max_tokens": max_tokens,
-        "temperature": temperature
-    }
-
-    delay = 1
-    for attempt in range(1, retries + 1):
-        try:
-            resp = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=timeout)
-            if resp.status_code == 429:
-                # rate limited - backoff
+    def call_groq():
+        if not GROQ_API_KEY:
+            return None, "no-groq-key"
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant that strictly follows instructions."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": max_tokens,
+            "temperature": temperature
+        }
+        delay = 1
+        for attempt in range(1, retries + 1):
+            try:
+                resp = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=timeout)
+                if resp.status_code == 429:
+                    time.sleep(delay)
+                    delay *= 2
+                    continue
+                resp.raise_for_status()
+                data = resp.json()
+                return data.get("choices", [])[0].get("message", {}).get("content", "").strip(), None
+            except requests.exceptions.RequestException as e:
+                if attempt == retries:
+                    return None, str(e)
                 time.sleep(delay)
                 delay *= 2
-                continue
-            resp.raise_for_status()
-            data = resp.json()
-            # OpenAI-compatible response shape used by Groq
-            return data.get("choices", [])[0].get("message", {}).get("content", "").strip()
-        except requests.exceptions.RequestException as e:
-            # on last attempt, show error
-            if attempt == retries:
-                st.error(f"API request failed: {e}")
-                return ""
-            time.sleep(delay)
-            delay *= 2
-        except Exception as e:
-            st.error(f"Failed to parse response: {e}")
-            return ""
+            except Exception as e:
+                return None, str(e)
+        return None, "unknown-groq-error"
 
+    def call_openai():
+        if not OPENAI_API_KEY:
+            return None, "no-openai-key"
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": DEFAULT_OPENAI_MODEL,
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant that strictly follows instructions."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": max_tokens,
+            "temperature": temperature
+        }
+        delay = 1
+        for attempt in range(1, retries + 1):
+            try:
+                resp = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=timeout)
+                if resp.status_code == 429:
+                    time.sleep(delay)
+                    delay *= 2
+                    continue
+                resp.raise_for_status()
+                data = resp.json()
+                return data.get("choices", [])[0].get("message", {}).get("content", "").strip(), None
+            except requests.exceptions.RequestException as e:
+                if attempt == retries:
+                    return None, str(e)
+                time.sleep(delay)
+                delay *= 2
+            except Exception as e:
+                return None, str(e)
+        return None, "unknown-openai-error"
+
+    # Try Groq first
+    groq_resp, groq_err = call_groq()
+    if groq_resp:
+        return groq_resp
+
+    # If Groq missing or failed, try OpenAI
+    openai_resp, openai_err = call_openai()
+    if openai_resp:
+        return openai_resp
+
+    # If both failed, show best error
+    err_msg = groq_err if groq_err and groq_err != "no-groq-key" else openai_err
+    if err_msg:
+        st.error(f"LLM provider error: {err_msg}")
+    else:
+        st.error("No LLM provider available.")
     return ""
 
 
@@ -210,7 +269,7 @@ Top 5 Missing Skills
         report = generate_with_groq(prompt, model=DEFAULT_GROQ_MODEL, max_tokens=2000, temperature=0.1)
 
     if not report:
-        st.error("Failed to generate report from Groq API.")
+        st.error("Failed to generate report from LLM providers.")
         st.stop()
 
     st.subheader("📊 Professional Placement Report")
