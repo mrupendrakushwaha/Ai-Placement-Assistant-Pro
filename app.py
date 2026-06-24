@@ -104,7 +104,11 @@ def summarize_resume_if_needed(resume_text, token_threshold=3500):
     if est_tokens <= token_threshold:
         return resume_text
 
-    summary_prompt = f"Summarize the following resume keeping only the key points (education, skills, experience, projects) in concise bullet points so it can be used for further analysis:\n\n{resume_text}"
+    summary_prompt = (
+        "Summarize the following resume keeping only the key points (education, skills, experience, projects) "
+        "in concise bullet points so it can be used for further analysis:\n\n"
+        f"{resume_text}"
+    )
     summary = generate_with_groq(summary_prompt, max_tokens=800, temperature=0.1)
     if summary:
         return summary
