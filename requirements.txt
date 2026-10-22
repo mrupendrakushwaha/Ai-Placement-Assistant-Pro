@@ -4,3 +4,5 @@ pdfplumber
 pandas
 PyGithub
 reportlab
+python-docx
+requests
